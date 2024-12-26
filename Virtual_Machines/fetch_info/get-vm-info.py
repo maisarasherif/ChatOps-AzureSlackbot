@@ -14,53 +14,11 @@ SLACK_BOT_TOKEN = 'xxxxxxxxxxxxxxxxxxxxxxxx'
 SLACK_SIGNING_SECRET = 'xxxxxxxxxxxxxxxxxxxxx'
 SLACK_CHANNEL_ID = 'xxxxxxxxxxxxxxxxx'
 
-# Function to verify Slack requests
-def verify_slack_request(request):
-    from hashlib import sha256
-    from hmac import new
-    import time
-
-    timestamp = request.headers.get("X-Slack-Request-Timestamp")
-    if not timestamp:
-        print("Missing X-Slack-Request-Timestamp header")
-        return False
-
-    try:
-        if abs(time.time() - int(timestamp)) > 60 * 5:
-            print("Request timestamp validation failed")
-            return False
-    except ValueError:
-        print("Invalid timestamp format")
-        return False
-
-    sig_basestring = f"v0:{timestamp}:{request.get_data(as_text=True)}"
-    my_signature = (
-        "v0="
-        + new(
-            SLACK_SIGNING_SECRET.encode(),
-            sig_basestring.encode(),
-            sha256,
-        ).hexdigest()
-    )
-
-    slack_signature = request.headers.get("X-Slack-Signature")
-    if not slack_signature:
-        print("Missing X-Slack-Signature header")
-        return False
-    return my_signature == slack_signature
-
 @app.route('/execute', methods=['GET', 'POST'])
 def execute_script():
 
-    VERIFY_SLACK_REQUESTS = False
-    
-    # Verify the request is from Slack
-    if VERIFY_SLACK_REQUESTS and not verify_slack_request(request):
-        return make_response("Invalid Slack request", 403)
-
     response_url = request.form.get('response_url')
 
-   
    # Send an immediate response to Slack
     response_message = {"response_type": "ephemeral", "text": "Processing your request..."}
     Thread(target=process_and_post_vms_to_slack, args=(response_url,)).start()
